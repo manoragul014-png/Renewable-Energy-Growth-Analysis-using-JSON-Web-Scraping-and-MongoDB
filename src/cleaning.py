@@ -1,65 +1,111 @@
-import os
-import certifi
 import pandas as pd
-from pathlib import Path
-from dotenv import load_dotenv
-from pymongo import MongoClient
-from pymongo.server_api import ServerApi
+from config import DATABASE_NAME, RAW_COLLECTION_NAME, CLEAN_COLLECTION_NAME, get_database
 
 
-# Project root
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-# Load .env from project root
-load_dotenv(BASE_DIR / ".env")
-
-MONGO_URI = os.getenv("MONGO_URI")
-
-DATABASE_NAME = "energy_project_db_New"
-
-# Possible raw collection names
-POSSIBLE_RAW_COLLECTIONS = [
-    "raw_energy_json_new",
-    "owid_energy_data"
+REQUIRED_COLUMNS = [
+    "country",
+    "year",
+    "iso_code",
+    "population",
+    "gdp",
+    "primary_energy_consumption",
+    "fossil_fuel_consumption",
+    "renewables_consumption",
+    "solar_consumption",
+    "wind_consumption",
+    "hydro_consumption",
+    "biofuel_consumption",
+    "low_carbon_consumption",
+    "coal_consumption",
+    "gas_consumption",
+    "oil_consumption",
+    "energy_per_capita",
+    "electricity_generation",
+    "electricity_demand",
+    "renewables_electricity",
+    "renewables_share_electricity",
+    "solar_electricity",
+    "wind_electricity",
+    "fossil_share_electricity",
+    "fossil_electricity",
+    "coal_electricity",
+    "gas_electricity",
+    "oil_electricity",
+    "low_carbon_electricity",
+    "low_carbon_share_electricity",
 ]
 
-CLEAN_COLLECTION_NAME = "renewable_energy_new"
+
+def clean_energy_data():
+    client, db = get_database()
+    raw_collection = db[RAW_COLLECTION_NAME]
+    clean_collection = db[CLEAN_COLLECTION_NAME]
+
+    try:
+        print("Reading raw data from MongoDB...")
+        print(f"Database: {DATABASE_NAME}")
+        print(f"Raw collection: {RAW_COLLECTION_NAME}")
+
+        raw_count = raw_collection.count_documents({})
+        print(f"Raw documents found: {raw_count}")
+
+        if raw_count == 0:
+            raise RuntimeError("Raw collection has 0 documents. Run: python src/scraper.py")
+
+        raw_data = list(raw_collection.find({}, {"_id": 0}))
+        df = pd.DataFrame(raw_data)
+        print(f"Raw dataframe shape: {df.shape}")
+
+        available_columns = [col for col in REQUIRED_COLUMNS if col in df.columns]
+        print(f"Available required columns: {len(available_columns)}")
+        print(available_columns)
+
+        if "country" not in available_columns or "year" not in available_columns:
+            raise RuntimeError("Required fields country/year are missing from raw data.")
+
+        df = df[available_columns].copy()
+
+        # Keep only real country/year rows
+        df = df.dropna(subset=["country", "year"])
+        df["year"] = pd.to_numeric(df["year"], errors="coerce")
+        df = df.dropna(subset=["year"])
+        df["year"] = df["year"].astype(int)
+
+        # OWID also contains regions/world aggregates. Keeping iso_code helps remove invalid rows.
+        if "iso_code" in df.columns:
+            df = df[df["iso_code"].notna()]
+
+        # Convert numeric columns safely
+        for col in df.columns:
+            if col not in ["country", "iso_code"]:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+
+        # Replace NaN with None for MongoDB compatibility
+        df = df.where(pd.notnull(df), None)
+        cleaned_documents = df.to_dict(orient="records")
+
+        print(f"Cleaned documents prepared: {len(cleaned_documents)}")
+
+        clean_collection.delete_many({})
+
+        if not cleaned_documents:
+            print("No cleaned documents available to insert.")
+            return 0
+
+        result = clean_collection.insert_many(cleaned_documents)
+        inserted_count = len(result.inserted_ids)
+
+        print(f"Cleaned data inserted successfully: {inserted_count} records")
+        print(f"Database: {DATABASE_NAME}")
+        print(f"Clean collection: {CLEAN_COLLECTION_NAME}")
+        return inserted_count
+
+    finally:
+        client.close()
 
 
-if not MONGO_URI:
-    raise ValueError("MONGO_URI not found in .env file")
-
-
-client = MongoClient(
-    MONGO_URI,
-    server_api=ServerApi("1"),
-    tls=True,
-    tlsCAFile=certifi.where()
-)
-
-db = client[DATABASE_NAME]
-cleaned_collection = db[CLEAN_COLLECTION_NAME]
-
-
-def find_raw_collection_with_data():
-    print("\nAvailable databases:")
-    print(client.list_database_names())
-
-    print(f"\nAvailable collections in database '{DATABASE_NAME}':")
-    print(db.list_collection_names())
-
-    for collection_name in POSSIBLE_RAW_COLLECTIONS:
-        collection = db[collection_name]
-        count = collection.count_documents({})
-        print(f"Documents in {collection_name}: {count}")
-
-        if count > 0:
-            print(f"\nUsing raw collection: {collection_name}")
-            return collection
-
-    raise Exception(
-        "No raw data found in any expected raw collection. "
-        "Please check which database and collection your scraper inserted into."
+if __name__ == "__main__":
+    clean_energy_data()
     )
 
 
