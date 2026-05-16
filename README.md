@@ -116,7 +116,7 @@ Follow the steps below to install and set up the project on your local system.
 ### Configuration                      --- Stores the project configuration settings such as MongoDB URI, database name, collection names, and the OWID energy data source URL.
       python src/config.py
 ### Clean the scraped JSON data        --- Raw data will be cleaned and stored in the MongoDB
-      python src/cleaning.py                          
+      python src/scraper.py                          
 ### Insert cleaned data into MongoDB   --- After this, a separate folder for cleaned data will be created in the MongoDB
       python src/cleaning.py     
 ### Run business analysis              --- Objectives are achieved in this step                  
