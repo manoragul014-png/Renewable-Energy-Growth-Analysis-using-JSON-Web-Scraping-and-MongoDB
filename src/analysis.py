@@ -1,18 +1,26 @@
 import os
 import certifi
+from pathlib import Path
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
 
-load_dotenv()
+
+# Get project root folder
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env from project root
+load_dotenv(BASE_DIR / ".env")
 
 MONGO_URI = os.getenv("MONGO_URI")
 
-DATABASE_NAME = "energy_project"
-CLEAN_COLLECTION_NAME = "owid_energy_cleaned"
+# Updated database and cleaned collection names
+DATABASE_NAME = "energy_project_db_New"
+CLEAN_COLLECTION_NAME = "renewable_energy_new"
 
-if not MONGO_URI:   
+if not MONGO_URI:
     raise ValueError("MONGO_URI not found in .env file")
+
 
 client = MongoClient(
     MONGO_URI,
@@ -298,9 +306,14 @@ def electricity_demand_ranking(year):
 
 
 if __name__ == "__main__":
+    print("Reading cleaned data from MongoDB...")
+    print(f"Database: {DATABASE_NAME}")
+    print(f"Collection: {CLEAN_COLLECTION_NAME}")
+    print(f"Documents found: {collection.count_documents({})}")
+
     latest_year = get_latest_year()
 
-    print(f"Latest available year in MongoDB: {latest_year}")
+    print(f"\nLatest available year in MongoDB: {latest_year}")
 
     if latest_year:
         start_year = latest_year - 10
@@ -311,5 +324,7 @@ if __name__ == "__main__":
         top_wind_growth_countries(start_year, latest_year)
         fossil_dependency_ranking(latest_year)
         electricity_demand_ranking(latest_year)
+    else:
+        print("No cleaned data found. Please run cleaning.py first.")
 
     client.close()
