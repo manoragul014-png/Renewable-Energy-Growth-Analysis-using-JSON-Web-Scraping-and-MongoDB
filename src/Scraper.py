@@ -1,74 +1,52 @@
-import os
-import certifi
 import requests
-from pathlib import Path
-from dotenv import load_dotenv
-from pymongo import MongoClient
-from pymongo.server_api import ServerApi
-
-
-# Get project root folder
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-# Load .env from project root
-load_dotenv(BASE_DIR / ".env")
-
-MONGO_URI = os.getenv("MONGO_URI")
-
-DATABASE_NAME = "energy_project_db_New"
-RAW_COLLECTION_NAME = "raw_energy_json_new"
-
-OWID_ENERGY_JSON_URL = "https://owid-public.owid.io/data/energy/owid-energy-data.json"
-
-
-if not MONGO_URI:
-    raise ValueError("MONGO_URI not found in .env file")
-
-
-client = MongoClient(
-    MONGO_URI,
-    server_api=ServerApi("1"),
-    tls=True,
-    tlsCAFile=certifi.where()
-)
-
-db = client[DATABASE_NAME]
-raw_collection = db[RAW_COLLECTION_NAME]
+from config import get_database, RAW_COLLECTION_NAME
 
 
 def scrape_owid_energy_json():
-    print("Downloading OWID energy JSON data...")
+    """
+    Scrapes energy data from Our World in Data JSON source
+    and inserts raw records into MongoDB.
+    """
 
-    response = requests.get(OWID_ENERGY_JSON_URL, timeout=60)
+    client, db = get_database()
+    raw_collection = db[RAW_COLLECTION_NAME]
+
+    url = "https://owid-public.owid.io/data/energy/owid-energy-data.json"
+
+    print("Scraping data from OWID energy JSON...")
+
+    response = requests.get(url, timeout=60)
     response.raise_for_status()
 
     data = response.json()
 
-    print("JSON data downloaded successfully.")
-    print(f"Countries/regions found: {len(data)}")
-
     raw_documents = []
 
-    for country_code, country_info in data.items():
-        country_name = country_info.get("country")
-        country_data = country_info.get("data", [])
+    for country_key, country_info in data.items():
+        country_name = country_info.get("country") or country_key
+        iso_code = country_info.get("iso_code") or country_key
+        yearly_records = country_info.get("data", [])
 
-        for record in country_data:
-            record["country"] = country_name
-            record["iso_code"] = country_code
-            raw_documents.append(record)
+        for record in yearly_records:
+            doc = dict(record)
+            doc["country"] = country_name
+            doc["iso_code"] = iso_code
+            raw_documents.append(doc)
 
     print(f"Raw records prepared: {len(raw_documents)}")
 
+    if len(raw_documents) == 0:
+        print("No records found. Nothing inserted.")
+        client.close()
+        return
+
     raw_collection.delete_many({})
 
-    if raw_documents:
-        raw_collection.insert_many(raw_documents)
-        print("Raw data inserted successfully into MongoDB.")
-        print(f"Database: {DATABASE_NAME}")
-        print(f"Collection: {RAW_COLLECTION_NAME}")
-    else:
-        print("No records found to insert.")
+    result = raw_collection.insert_many(raw_documents)
+
+    print(f"Raw data inserted successfully: {len(result.inserted_ids)} records")
+    print("Database: renewable_energy_growth_db")
+    print(f"Collection: {RAW_COLLECTION_NAME}")
 
     client.close()
 
