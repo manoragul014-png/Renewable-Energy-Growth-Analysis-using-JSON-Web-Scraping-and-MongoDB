@@ -118,7 +118,7 @@ Follow the steps below to install and set up the project on your local system.
 ### Clean the scraped JSON data        --- Raw data will be cleaned and stored in the MongoDB
       python src/cleaning.py                          
 ### Insert cleaned data into MongoDB   --- After this, a separate folder for cleaned data will be created in the MongoDB
-      python src/insert_to_mongodb.py       
+      python src/cleaning.py     
 ### Run business analysis              --- Objectives are achieved in this step                  
       python src/analysis.py                 
 ### Generate visualization             --- Output will be stored in the separate folder
