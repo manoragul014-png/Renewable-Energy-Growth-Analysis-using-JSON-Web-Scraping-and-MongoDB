@@ -32,7 +32,7 @@ renewable-energy-json-scraper/
 │   ├── analysis.py            
 │   └── visualization.py       
 │
-├── output/
+├── outputs/
 │   ├── renewable_electricity_trend.png     
 │   ├── top_electricity_demand.png          
 │   ├── top_renewable_electricity.png    
@@ -68,7 +68,7 @@ The project follows a simple end-to-end data pipeline:
 ```text
 Website - Our World In Data - Energy Dataset
       ↓
-Scraping the data using Beautifulsoup
+fetching JSON data using Python requests and BeautifulSoup
       ↓
 MongoDB Raw Collection
       ↓
@@ -83,9 +83,55 @@ Data Visualization
 Insights (Output)
 ```
 
+## Installation and Setup
 
-                    
+Follow the steps below to install and set up the project on your local system.
 
+### 1. Clone the Repository
+      git clone <repository-link>
+      cd <project-folder-name>
+
+### 2. Create a Virtual Environment
+      python -m venv energy_project
+
+### 3. Activate the Virtual Environment
+#### For macOS/Linux:
+      source energy_project/bin/activate
+
+#### For Windows:
+      energy_project\Scripts\activate
+
+### 4. Install Required Libraries
+      pip install -r requirements.txt
+
+### 5. Create a .env File
+      Create a .env file in the root folder of the project and add your MongoDB connection string:
+            MONGO_URI=your_mongodb_connection_string
+
+#### Example:
+      MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/
+
+
+## How to Run the Project
+### Configuration                      --- Stores the project configuration settings such as MongoDB URI, database name, collection names, and the OWID energy data source URL.
+      python src/config.py
+### Clean the scraped JSON data        --- Raw data will be cleaned and stored in the MongoDB
+      python src/cleaning.py                          
+### Insert cleaned data into MongoDB   --- After this, a separate folder for cleaned data will be created in the MongoDB
+      python src/insert_to_mongodb.py       
+### Run business analysis              --- Objectives are achieved in this step                  
+      python src/analysis.py                 
+### Generate visualization             --- Output will be stored in the separate folder
+      python src/visualization.py           
+
+## Key Skills Demonstrated
+
+- Web scraping and JSON data extraction using Python
+- NoSQL database management using MongoDB
+- Data cleaning and preprocessing with Pandas
+- Exploratory data analysis for renewable energy trends
+- Data visualization using Matplotlib
+- End-to-end data pipeline development
 
 
 
