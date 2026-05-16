@@ -10,8 +10,8 @@ load_dotenv(BASE_DIR / ".env")
 
 MONGO_URI = os.getenv("MONGO_URI")
 
-DATABASE_NAME = "energy_project_db"
-RAW_COLLECTION_NAME = "raw_energy_json"
-CLEAN_COLLECTION_NAME = "renewable_energy"
+DATABASE_NAME = "energy_project_db_New"
+RAW_COLLECTION_NAME = "raw_energy_json_new"
+CLEAN_COLLECTION_NAME = "renewable_energy_new"
 
 OWID_ENERGY_JSON_URL = "https://owid-public.owid.io/data/energy/owid-energy-data.json"
