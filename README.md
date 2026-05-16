@@ -44,6 +44,20 @@ renewable-energy-json-scraper/
 └── .env
 ```
 
+## MongoDB Structure
+
+Database:
+
+```text
+renewable_energy_growth_db
+```
+
+Collections:
+
+```text
+raw_energy_data      # raw scraped JSON records
+clean_energy_data    # cleaned records for analysis and visualization
+```
 
 ## Dataset / Data Source
 
@@ -113,16 +127,13 @@ Follow the steps below to install and set up the project on your local system.
 
 
 ## How to Run the Project
-### Configuration                      --- Stores the project configuration settings such as MongoDB URI, database name, collection names, and the OWID energy data source URL.
-      python src/config.py
-### Clean the scraped JSON data        --- Raw data will be cleaned and stored in the MongoDB
-      python src/scraper.py                          
-### Insert cleaned data into MongoDB   --- After this, a separate folder for cleaned data will be created in the MongoDB
-      python src/cleaning.py     
-### Run business analysis              --- Objectives are achieved in this step                  
-      python src/analysis.py                 
-### Generate visualization             --- Output will be stored in the separate folder
-      python src/visualization.py           
+    Run these commands from the project root folder:
+```bash
+      python src/scraper.py
+      python src/cleaning.py
+      python src/analysis.py
+      python src/visualization.py
+```          
 
 ## Key Skills Demonstrated
 
