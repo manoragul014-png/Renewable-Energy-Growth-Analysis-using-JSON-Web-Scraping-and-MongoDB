@@ -1,20 +1,25 @@
 import os
 import certifi
 import requests
-import pandas as pd
-from bs4 import BeautifulSoup
+from pathlib import Path
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
 
-load_dotenv()
+
+# Get project root folder
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env from project root
+load_dotenv(BASE_DIR / ".env")
 
 MONGO_URI = os.getenv("MONGO_URI")
 
-DATABASE_NAME = "energy_project"
-RAW_COLLECTION_NAME = "owid_energy_data"
+DATABASE_NAME = "energy_project_db_New"
+RAW_COLLECTION_NAME = "raw_energy_json_new"
 
-SOURCE_PAGE_URL = "https://github.com/owid/energy-data"
+OWID_ENERGY_JSON_URL = "https://owid-public.owid.io/data/energy/owid-energy-data.json"
+
 
 if not MONGO_URI:
     raise ValueError("MONGO_URI not found in .env file")
@@ -28,56 +33,38 @@ client = MongoClient(
 )
 
 db = client[DATABASE_NAME]
-collection = db[RAW_COLLECTION_NAME]
+raw_collection = db[RAW_COLLECTION_NAME]
 
 
-def scrape_dataset_link():
-    print("Scraping OWID energy data webpage...")
+def scrape_owid_energy_json():
+    print("Downloading OWID energy JSON data...")
 
-    headers = {
-        "User-Agent": "Mozilla/5.0"
-    }
-
-    response = requests.get(SOURCE_PAGE_URL, headers=headers, timeout=30)
+    response = requests.get(OWID_ENERGY_JSON_URL, timeout=60)
     response.raise_for_status()
 
-    soup = BeautifulSoup(response.text, "lxml")
+    data = response.json()
 
-    csv_url = None
+    print("JSON data downloaded successfully.")
+    print(f"Countries/regions found: {len(data)}")
 
-    for link in soup.find_all("a", href=True):
-        href = link["href"]
+    raw_documents = []
 
-        if href.endswith("owid-energy-data.csv"):
-            csv_url = "https://raw.githubusercontent.com" + href.replace("/blob/", "/")
-            break
+    for country_code, country_info in data.items():
+        country_name = country_info.get("country")
+        country_data = country_info.get("data", [])
 
-    if not csv_url:
-        raise Exception("Could not find OWID energy CSV link from the webpage.")
+        for record in country_data:
+            record["country"] = country_name
+            record["iso_code"] = country_code
+            raw_documents.append(record)
 
-    print(f"Dataset link found: {csv_url}")
-    return csv_url
+    print(f"Raw records prepared: {len(raw_documents)}")
 
+    raw_collection.delete_many({})
 
-def scrape_owid_energy_data():
-    csv_url = scrape_dataset_link()
-
-    print("Downloading dataset from scraped link...")
-
-    df = pd.read_csv(csv_url)
-
-    print(f"Rows downloaded: {len(df)}")
-    print(f"Columns downloaded: {len(df.columns)}")
-
-    df = df.where(pd.notnull(df), None)
-
-    records = df.to_dict(orient="records")
-
-    collection.delete_many({})
-
-    if records:
-        collection.insert_many(records)
-        print(f"Inserted {len(records)} raw records into MongoDB.")
+    if raw_documents:
+        raw_collection.insert_many(raw_documents)
+        print("Raw data inserted successfully into MongoDB.")
         print(f"Database: {DATABASE_NAME}")
         print(f"Collection: {RAW_COLLECTION_NAME}")
     else:
@@ -87,4 +74,4 @@ def scrape_owid_energy_data():
 
 
 if __name__ == "__main__":
-    scrape_owid_energy_data()
+    scrape_owid_energy_json()
