@@ -16,7 +16,6 @@ The project demonstrates how raw JSON data can be extracted from a web source, s
 - Which countries showed the highest wind electricity growth?
 - Which countries still depend heavily on fossil fuels for electricity?
 - Which countries have the highest electricity demand?
-- How has renewable electricity changed since 2000 in India, Germany, China, and the United States?
 
 ---
 
