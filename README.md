@@ -32,7 +32,7 @@ renewable-energy-json-scraper/
 │   ├── analysis.py            
 │   └── visualization.py       
 │
-├── outputs/
+├── sample screenshots/
 │   ├── renewable_electricity_trend.png     
 │   ├── top_electricity_demand.png          
 │   ├── top_renewable_electricity.png    
