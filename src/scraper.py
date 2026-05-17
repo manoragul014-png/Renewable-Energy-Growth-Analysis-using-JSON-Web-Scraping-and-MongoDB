@@ -1,54 +1,114 @@
 import requests
+from bs4 import BeautifulSoup
 from config import get_database, RAW_COLLECTION_NAME
+
+
+def find_energy_json_url():
+    """
+    Uses BeautifulSoup to parse the Our World in Data energy page
+    and identify the JSON data source URL.
+
+    If the JSON URL is not found from the page, the function uses
+    the known OWID JSON data URL as a fallback.
+    """
+
+    page_url = "https://ourworldindata.org/energy"
+
+    print("Opening Our World in Data energy page...")
+    response = requests.get(page_url, timeout=60)
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    print("Parsing page using BeautifulSoup...")
+
+    json_url = None
+
+    # Search all links on the page
+    for link in soup.find_all("a", href=True):
+        href = link["href"]
+
+        if "owid-energy-data.json" in href:
+            if href.startswith("http"):
+                json_url = href
+            else:
+                json_url = "https://ourworldindata.org" + href
+            break
+
+    # Fallback URL, because OWID keeps the JSON data at this public endpoint
+    if json_url is None:
+        print("JSON link not found directly in page. Using known OWID JSON data URL.")
+        json_url = "https://owid-public.owid.io/data/energy/owid-energy-data.json"
+
+    print(f"JSON data source found: {json_url}")
+    return json_url
 
 
 def scrape_owid_energy_json():
     """
-    Scrapes energy data from Our World in Data JSON source
-    and inserts raw records into MongoDB.
+    Scrapes renewable energy data from Our World in Data.
+
+    Steps:
+    1. Uses BeautifulSoup to parse the OWID energy webpage.
+    2. Finds or falls back to the OWID JSON data source.
+    3. Sends a request to the JSON URL.
+    4. Converts JSON response into Python dictionary.
+    5. Flattens country-wise yearly records.
+    6. Stores raw records into MongoDB.
     """
 
     client, db = get_database()
     raw_collection = db[RAW_COLLECTION_NAME]
 
-    url = "https://owid-public.owid.io/data/energy/owid-energy-data.json"
+    try:
+        json_url = find_energy_json_url()
 
-    print("Scraping data from OWID energy JSON...")
+        print("Fetching JSON energy data...")
+        response = requests.get(json_url, timeout=60)
+        response.raise_for_status()
 
-    response = requests.get(url, timeout=60)
-    response.raise_for_status()
+        data = response.json()
 
-    data = response.json()
+        raw_documents = []
 
-    raw_documents = []
+        for country_key, country_info in data.items():
+            country_name = country_info.get("country") or country_key
+            iso_code = country_info.get("iso_code") or country_key
+            yearly_records = country_info.get("data", [])
 
-    for country_key, country_info in data.items():
-        country_name = country_info.get("country") or country_key
-        iso_code = country_info.get("iso_code") or country_key
-        yearly_records = country_info.get("data", [])
+            for record in yearly_records:
+                doc = dict(record)
+                doc["country"] = country_name
+                doc["iso_code"] = iso_code
+                raw_documents.append(doc)
 
-        for record in yearly_records:
-            doc = dict(record)
-            doc["country"] = country_name
-            doc["iso_code"] = iso_code
-            raw_documents.append(doc)
+        print(f"Raw records prepared: {len(raw_documents)}")
 
-    print(f"Raw records prepared: {len(raw_documents)}")
+        if len(raw_documents) == 0:
+            print("No records found. Nothing inserted.")
+            return
 
-    if len(raw_documents) == 0:
-        print("No records found. Nothing inserted.")
+        print("Clearing existing raw collection...")
+        raw_collection.delete_many({})
+
+        print("Inserting raw records into MongoDB...")
+        result = raw_collection.insert_many(raw_documents)
+
+        print(f"Raw data inserted successfully: {len(result.inserted_ids)} records")
+        print("Database: renewable_energy_growth_db")
+        print(f"Collection: {RAW_COLLECTION_NAME}")
+
+    except requests.exceptions.RequestException as e:
+        print("Error while requesting data from the web:")
+        print(e)
+
+    except Exception as e:
+        print("Unexpected error occurred:")
+        print(e)
+
+    finally:
         client.close()
-        return
-
-    raw_collection.delete_many({})
-
-    result = raw_collection.insert_many(raw_documents)
-
-    print(f"Raw data inserted successfully: {len(result.inserted_ids)} records")
-    print("Database: renewable_energy_growth_db")
-    print(f"Collection: {RAW_COLLECTION_NAME}")
-
-    client.close()
+        print("MongoDB connection closed.")
 
 
 if __name__ == "__main__":
