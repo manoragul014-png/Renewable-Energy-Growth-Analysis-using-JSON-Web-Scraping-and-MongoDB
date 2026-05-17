@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from config import get_database, DATABASE_NAME, RAW_COLLECTION_NAME, CLEAN_COLLECTION_NAME
 
 
