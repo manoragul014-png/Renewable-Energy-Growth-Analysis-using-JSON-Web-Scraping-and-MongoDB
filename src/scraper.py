@@ -5,11 +5,7 @@ from config import get_database, RAW_COLLECTION_NAME
 
 def find_energy_json_url():
     """
-    Uses BeautifulSoup to parse the Our World in Data energy page
-    and identify the JSON data source URL.
-
-    If the JSON URL is not found from the page, the function uses
-    the known OWID JSON data URL as a fallback.
+    Uses BeautifulSoup to parse the Our World in Data energy page.
     """
 
     page_url = "https://ourworldindata.org/energy"
@@ -35,7 +31,7 @@ def find_energy_json_url():
                 json_url = "https://ourworldindata.org" + href
             break
 
-    # Fallback URL, because OWID keeps the JSON data at this public endpoint
+    # OWID website
     if json_url is None:
         print("JSON link not found directly in page. Using known OWID JSON data URL.")
         json_url = "https://owid-public.owid.io/data/energy/owid-energy-data.json"
@@ -47,14 +43,6 @@ def find_energy_json_url():
 def scrape_owid_energy_json():
     """
     Scrapes renewable energy data from Our World in Data.
-
-    Steps:
-    1. Uses BeautifulSoup to parse the OWID energy webpage.
-    2. Finds or falls back to the OWID JSON data source.
-    3. Sends a request to the JSON URL.
-    4. Converts JSON response into Python dictionary.
-    5. Flattens country-wise yearly records.
-    6. Stores raw records into MongoDB.
     """
 
     client, db = get_database()
