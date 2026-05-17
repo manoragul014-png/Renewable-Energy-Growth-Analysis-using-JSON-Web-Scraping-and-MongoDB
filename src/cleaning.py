@@ -115,8 +115,8 @@ def clean_energy_data():
     # Replace invalid infinity values
     df = df.replace([float("inf"), float("-inf")], None)
 
-    # Replace NaN with None for MongoDB
-    df = df.where(pd.notnull(df), None)
+    # Replace  with NaN for MongoDB
+    df = df.replace({np.nan: None})
 
     cleaned_documents = df.to_dict(orient="records")
 
